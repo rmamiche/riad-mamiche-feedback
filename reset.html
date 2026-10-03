@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Nouveau mot de passe · Riad Mamiche</title>
+  <style>
+    *{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;font-family:Segoe UI,Arial,sans-serif;color:#17372b;background:#f4f7f4}header{background:white;border-bottom:3px solid #cd3b3e;padding:24px;color:#00582d;font-weight:bold;letter-spacing:3px}main{max-width:480px;margin:60px auto;padding:0 20px}.card{padding:28px;background:white;border:1px solid #dbe6df;border-radius:16px}h1{font-size:28px;margin-top:0}p{line-height:1.6}label{display:block;margin:18px 0;font-size:14px}input{display:block;width:100%;padding:13px;margin-top:8px;border:1px solid #c6d6ca;border-radius:8px;font:inherit}button,a{display:block;border-radius:8px;padding:14px;text-align:center;background:#00582d;color:white;font:inherit;min-height:48px}button{width:100%;border:0;cursor:pointer}button:disabled{opacity:.5;cursor:default}a{text-decoration:none}#status{font-size:14px;white-space:pre-wrap}input:focus,button:focus-visible,a:focus-visible{outline:3px solid #cd3b3e;outline-offset:3px}.muted{font-size:13px;color:#65796c}
+  </style>
+</head>
+<body>
+<header>RIAD MAMICHE</header>
+<main><section class="card">
+  <h1>Choisir un nouveau mot de passe</h1>
+  <p id="status" role="status" aria-live="polite">Vérification du lien…</p>
+  <form id="reset" hidden>
+    <label>Nouveau mot de passe<input name="password" type="password" autocomplete="new-password" minlength="12" maxlength="256" required></label>
+    <label>Confirmer le mot de passe<input name="confirm" type="password" autocomplete="new-password" minlength="12" maxlength="256" required></label>
+    <p class="muted">Choisissez au moins 12 caractères et conservez votre mot de passe dans un endroit privé.</p>
+    <button type="submit">Enregistrer le nouveau mot de passe</button>
+  </form>
+  <a id="login" href="./trainer.html" hidden>Ouvrir le tableau de bord</a>
+</section></main>
+<script type="module">
+  const url=import.meta.env.VITE_SUPABASE_URL;
+  const key=import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  let token=null,recovery=false;
+  const status=document.querySelector('#status');
+  const form=document.querySelector('#reset');
+  const login=document.querySelector('#login');
+  // Keep recovery credentials only in memory; remove them from the address bar.
+  function readLink(){
+    const hash=new URLSearchParams(location.hash.slice(1));
+    token=hash.get('access_token');recovery=hash.get('type')==='recovery';
+    history.replaceState(null,'',location.pathname);
+  }
+  readLink();
+  const headers=()=>({'apikey':key,'Authorization':`Bearer ${token}`,'Content-Type':'application/json'});
+  async function start(){
+    if(!url||!key){status.textContent='La connexion Supabase doit être configurée.';return;}
+    if(!token||!recovery){status.textContent='Ouvrez cette page depuis le lien de récupération envoyé par e-mail. Si le lien est expiré, demandez un nouveau lien.';return;}
+    try{
+      const response=await fetch(`${url.replace(/\/$/,'')}/auth/v1/user`,{headers:headers()});
+      if(!response.ok)throw Error('Invalid recovery');
+      const user=await response.json();
+      if(!user.id)throw Error('Invalid user');
+      form.hidden=false;
+      status.textContent='Lien vérifié. Vous pouvez choisir votre nouveau mot de passe.';
+    }catch{token=null;status.textContent='Lien invalide, expiré ou connexion indisponible. Demandez un nouveau lien de récupération et réessayez.';}
+  }
+  form.addEventListener('submit',async event=>{
+    event.preventDefault();
+    const password=form.elements.password.value;
+    if(password!==form.elements.confirm.value){status.textContent='Les deux mots de passe doivent être identiques.';return;}
+    const button=form.querySelector('button');button.disabled=true;status.textContent='Enregistrement en cours…';
+    try{
+      const response=await fetch(`${url.replace(/\/$/,'')}/auth/v1/user`,{method:'PUT',headers:headers(),body:JSON.stringify({password})});
+      if(!response.ok)throw Error('Update rejected');
+      const user=await response.json();if(!user.id)throw Error('Update not confirmed');
+      token=null;form.reset();form.hidden=true;login.hidden=false;
+      status.textContent='Votre mot de passe a été mis à jour. Connectez-vous au tableau de bord avec le nouveau mot de passe.';
+    }catch{status.textContent='Mise à jour impossible. Vérifiez votre connexion et les exigences du mot de passe. Si le lien est expiré, demandez un nouveau lien.';button.disabled=false;}
+  });
+  addEventListener('hashchange',()=>{form.reset();form.hidden=true;login.hidden=true;readLink();start();});
+  start();
+</script>
+</body></html>
