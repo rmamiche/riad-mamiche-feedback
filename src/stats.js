@@ -7,6 +7,7 @@ export function summarize(rows,version=VERSION){
  result.sections=q.sections.filter(s=>s.questions.length).map(s=>({title:s.title,average:mean(rows.flatMap(r=>s.questions.map(item=>r.ratings?.[item.id])))}));
  result.levels=q.levels.map(level=>({level,before:rows.filter(r=>r.before_level===level).length,after:rows.filter(r=>r.after_level===level).length}));
  if(q.confidentialityQuestion)result.confidentiality=['Oui','En partie','Non'].map(answer=>({answer,count:rows.filter(r=>r.raw_payload?.confidentiality===answer).length}));
+ if(q.structureChoices)result.structures=q.structureChoices.map(structure=>({structure,count:rows.filter(r=>r.raw_payload?.structure?.includes(structure)).length}));
  return result;
 }
 export const fmt=(value,digits=2)=>value==null?'—':value.toLocaleString('fr-FR',{maximumFractionDigits:digits,minimumFractionDigits:digits});
